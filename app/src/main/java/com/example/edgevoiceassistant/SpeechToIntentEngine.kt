@@ -18,7 +18,7 @@ data class PredictionResult(
 class SpeechToIntentEngine(context: Context) {
     private val ortEnv: OrtEnvironment = OrtEnvironment.getEnvironment()
     private val ortSession: OrtSession
-    val commands: List<String>
+    val commands = listOf("on", "off", "up", "down", "stop", "go")
 
     init {
         val modelBytes = context.assets.open("speech_to_intent_int8.onnx").readBytes()
@@ -26,20 +26,6 @@ class SpeechToIntentEngine(context: Context) {
             setIntraOpNumThreads(2)
         }
         ortSession = ortEnv.createSession(modelBytes, sessionOptions)
-
-        val outputType = ortSession.outputTypeInfo.values.firstOrNull()
-        val numClasses = try {
-            val tensorInfo = outputType as? ai.onnxruntime.TensorInfo
-            tensorInfo?.shape?.getOrNull(1)?.toInt() ?: 6
-        } catch (_: Exception) {
-            6
-        }
-
-        commands = if (numClasses >= 7) {
-            listOf("hey", "on", "off", "up", "down", "stop", "go")
-        } else {
-            listOf("on", "off", "up", "down", "stop", "go")
-        }
     }
 
     suspend fun predict(audioBuffer: FloatArray): PredictionResult = withContext(Dispatchers.Default) {

@@ -60,7 +60,7 @@ class MainActivity : AppCompatActivity() {
     private var awakeTimeoutJob: Job? = null
     private var currentState = AssistantState.STANDBY
 
-    private val availableActions = arrayOf(
+    private val availableActions: Array<CharSequence> = arrayOf(
         "Torch ON",
         "Torch OFF",
         "Volume UP",
@@ -99,7 +99,7 @@ class MainActivity : AppCompatActivity() {
         "Launches the phone dialer keypad for making calls.",
         "Opens the web search browser / Google Search.",
         "Opens the quick Wi-Fi / connectivity settings panel.",
-        "Opens the quick Bluetooth settings panel.",
+        "Opens the Bluetooth settings page.",
         "Opens Battery Saver / Low Power settings.",
         "Opens Airplane Mode system toggle page.",
         "Reads and displays real-time battery % and charging state.",
@@ -154,8 +154,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getActiveWakeWord(): String {
-        val defaultWake = if (engine.commands.contains("hey")) "hey" else "go"
-        return prefs.getString("active_wake_word", defaultWake) ?: defaultWake
+        return prefs.getString("active_wake_word", "go") ?: "go"
     }
 
     private fun checkPermissions() {
@@ -189,7 +188,6 @@ class MainActivity : AppCompatActivity() {
                 if (windowResult != null) {
                     val (audioBuffer, rmsEnergy) = windowResult
 
-                    // Silence threshold: Process if speech energy is present
                     if (rmsEnergy >= 0.012f) {
                         val prediction = engine.predict(audioBuffer)
 
@@ -310,14 +308,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showWakeWordSelectorDialog() {
-        val choices = engine.commands.toTypedArray()
+        val choices: Array<CharSequence> = engine.commands.map { it as CharSequence }.toTypedArray()
         val current = getActiveWakeWord()
         val currentIdx = choices.indexOf(current).coerceAtLeast(0)
 
         AlertDialog.Builder(this)
             .setTitle("Select Wake Word")
             .setSingleChoiceItems(choices, currentIdx) { dialog, which ->
-                val selected = choices[which]
+                val selected = choices[which].toString()
                 prefs.edit().putString("active_wake_word", selected).apply()
                 updateMappingDisplay()
                 dialog.dismiss()
@@ -362,12 +360,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun showRemapDialog() {
         val wake = getActiveWakeWord()
-        val commandsToRemap = engine.commands.filter { !it.equals(wake, ignoreCase = true) }.toTypedArray()
+        val commandsToRemap: Array<CharSequence> = engine.commands
+            .filter { !it.equals(wake, ignoreCase = true) }
+            .map { it as CharSequence }
+            .toTypedArray()
 
         AlertDialog.Builder(this)
             .setTitle("Select Command to Remap")
             .setItems(commandsToRemap) { _, idx ->
-                val selectedCmd = commandsToRemap[idx]
+                val selectedCmd = commandsToRemap[idx].toString()
                 AlertDialog.Builder(this)
                     .setTitle("Assign Action for '$selectedCmd'")
                     .setSingleChoiceItems(availableActions, getActionForKeyword(selectedCmd)) { dialog, actionIdx ->
@@ -477,14 +478,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun openBluetoothSettings() {
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val panelIntent = Intent(Settings.Panel.ACTION_BLUETOOTH)
-                startActivity(panelIntent)
-            } else {
-                startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
-            }
-        } catch (_: Exception) {
             startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
+        } catch (_: Exception) {
+            Toast.makeText(this, "Cannot open Bluetooth settings", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -505,7 +501,7 @@ class MainActivity : AppCompatActivity() {
         if (timerIntent.resolveActivity(packageManager) != null) {
             startActivity(timerIntent)
         } else {
-            Toast.makeText(this, "No Clock App found to set timer", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "No Clock App found", Toast.LENGTH_SHORT).show()
         }
     }
 
